@@ -8,7 +8,17 @@ dotenv.config();
 console.log("DEBUG: GAS_ENDPOINT_URL is:", process.env.GAS_ENDPOINT_URL);
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
+
+// #region agent log
+const debugLog = (location: string, message: string, data: Record<string, unknown>, hypothesisId: string) => {
+  fetch("http://127.0.0.1:7386/ingest/2c9c0a51-cd3c-406e-9273-0af96aff9294", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "314df0" },
+    body: JSON.stringify({ sessionId: "314df0", location, message, data, hypothesisId, timestamp: Date.now(), runId: "pre-fix" }),
+  }).catch(() => {});
+};
+// #endregion
 
 app.use(express.json({ limit: "15mb" }));
 
@@ -24,7 +34,11 @@ const getGasUrl = (req: any) => {
   if (headerUrl && typeof headerUrl === "string" && headerUrl.trim().startsWith("http")) {
     return headerUrl.trim();
   }
-  return process.env.GAS_ENDPOINT_URL || "";
+  const envUrl = process.env.GAS_ENDPOINT_URL || "";
+  // #region agent log
+  debugLog("server.ts:getGasUrl", "GAS URL resolved", { hasEnvUrl: !!envUrl, hasHeaderUrl: !!headerUrl, envUrlLength: envUrl.length }, "A");
+  // #endregion
+  return envUrl;
 };
 
 // GET settings
@@ -119,10 +133,22 @@ app.post("/api/settings", async (req, res) => {
 app.get("/api/services", async (req, res) => {
   try {
     const GAS_URL = getGasUrl(req);
+    if (!GAS_URL) {
+      // #region agent log
+      debugLog("server.ts:GET /api/services", "No GAS URL - returning empty", {}, "A");
+      // #endregion
+      return res.json({ success: true, data: [] });
+    }
     const response = await fetch(`${GAS_URL}?action=getServices`);
     const data = await response.json();
+    // #region agent log
+    debugLog("server.ts:GET /api/services", "GAS response", { success: data?.success, count: Array.isArray(data?.data) ? data.data.length : null }, "D");
+    // #endregion
     res.json(data);
   } catch (err: any) {
+    // #region agent log
+    debugLog("server.ts:GET /api/services", "Fetch failed", { error: err.message }, "A");
+    // #endregion
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -196,6 +222,12 @@ app.post("/api/auth", async (req, res) => {
 app.get("/api/users", async (req, res) => {
   try {
     const GAS_URL = getGasUrl(req);
+    if (!GAS_URL) {
+      // #region agent log
+      debugLog("server.ts:GET /api/users", "No GAS URL - returning empty", {}, "A");
+      // #endregion
+      return res.json({ success: true, data: [] });
+    }
     const role = req.query.role || "";
     const response = await fetch(`${GAS_URL}?action=getUsers&role=${role}`);
     const data = await response.json();
@@ -412,9 +444,25 @@ async function setupViteAndStatic() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  const tryListen = (port: number, attemptsLeft = 5) => {
+    const server = app.listen(port, "0.0.0.0");
+    server.once("listening", () => {
+      // #region agent log
+      debugLog("server.ts:listen", "Server bound", { port, gasConfigured: !!process.env.GAS_ENDPOINT_URL }, "C");
+      // #endregion
+      console.log(`Server running on http://localhost:${port}`);
+    });
+    server.on("error", (err: NodeJS.ErrnoException) => {
+      if ((err.code === "EADDRINUSE" || err.code === "EACCES") && attemptsLeft > 0) {
+        console.warn(`Port ${port} tidak tersedia (${err.code}), mencoba port ${port + 1}...`);
+        tryListen(port + 1, attemptsLeft - 1);
+      } else {
+        console.error("Gagal menjalankan server:", err.message);
+        process.exit(1);
+      }
+    });
+  };
+  tryListen(PORT);
 }
 
 setupViteAndStatic();

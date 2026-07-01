@@ -338,6 +338,9 @@ export default function App() {
       // 1. Fetch settings
       const settingsRes = await appFetch("/api/settings");
       const settingsData = await settingsRes.json();
+      // #region agent log
+      fetch('http://127.0.0.1:7386/ingest/2c9c0a51-cd3c-406e-9273-0af96aff9294',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'314df0'},body:JSON.stringify({sessionId:'314df0',location:'App.tsx:fetchCmsData:settings',message:'Settings loaded',data:{ok:settingsRes.ok,success:settingsData.success,hasName:!!settingsData.data?.WebsiteName},timestamp:Date.now(),hypothesisId:'B',runId:'pre-fix'})}).catch(()=>{});
+      // #endregion
       if (settingsData.success && settingsData.data) {
         setSettings(settingsData.data);
         setGasConnected(true);
@@ -348,6 +351,9 @@ export default function App() {
       // 2. Fetch services
       const servicesRes = await appFetch("/api/services");
       const servicesData = await servicesRes.json();
+      // #region agent log
+      fetch('http://127.0.0.1:7386/ingest/2c9c0a51-cd3c-406e-9273-0af96aff9294',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'314df0'},body:JSON.stringify({sessionId:'314df0',location:'App.tsx:fetchCmsData:services',message:'Services loaded',data:{ok:servicesRes.ok,success:servicesData.success,count:servicesData.data?.length??0,error:servicesData.error},timestamp:Date.now(),hypothesisId:'A',runId:'pre-fix'})}).catch(()=>{});
+      // #endregion
       if (servicesData.success && servicesData.data && servicesData.data.length > 0) {
         setServices(servicesData.data);
       }
@@ -355,6 +361,9 @@ export default function App() {
       // 3. Fetch workers (fetch all user accounts to synchronize admin & worker database)
       const workersRes = await appFetch("/api/users");
       const workersData = await workersRes.json();
+      // #region agent log
+      fetch('http://127.0.0.1:7386/ingest/2c9c0a51-cd3c-406e-9273-0af96aff9294',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'314df0'},body:JSON.stringify({sessionId:'314df0',location:'App.tsx:fetchCmsData:workers',message:'Workers loaded',data:{ok:workersRes.ok,success:workersData.success,count:workersData.data?.length??0,error:workersData.error},timestamp:Date.now(),hypothesisId:'A',runId:'pre-fix'})}).catch(()=>{});
+      // #endregion
       if (workersData.success && workersData.data && workersData.data.length > 0) {
         setWorkers(workersData.data);
       }
