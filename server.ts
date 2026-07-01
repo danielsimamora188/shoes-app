@@ -43,7 +43,7 @@ const getGasUrl = (req: any) => {
 
 // GET settings
 app.get("/api/settings", async (req, res) => {
-  const fallbackPath = path.join(__dirname, "settings_fallback.json");
+  const fallbackPath = path.join(process.cwd(), "settings_fallback.json");
   let localSettings: any = {};
   try {
     if (fs.existsSync(fallbackPath)) {
@@ -104,7 +104,7 @@ app.get("/api/settings", async (req, res) => {
 
 // POST settings
 app.post("/api/settings", async (req, res) => {
-  const fallbackPath = path.join(__dirname, "settings_fallback.json");
+  const fallbackPath = path.join(process.cwd(), "settings_fallback.json");
   try {
     fs.writeFileSync(fallbackPath, JSON.stringify(req.body, null, 2), "utf-8");
   } catch (err) {
@@ -428,7 +428,34 @@ app.patch("/api/admin/orders/:id/status", async (req, res) => {
   }
 });
 
-// Vite & Static file handler
+function setupProductionStatic() {
+  const distPath = path.join(process.cwd(), "dist");
+  app.use(express.static(distPath));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api/")) return next();
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+}
+
+function tryListen(port: number, attemptsLeft = 5) {
+  const server = app.listen(port, "0.0.0.0");
+  server.once("listening", () => {
+    // #region agent log
+    debugLog("server.ts:listen", "Server bound", { port, gasConfigured: !!process.env.GAS_ENDPOINT_URL }, "C");
+    // #endregion
+    console.log(`Server running on http://localhost:${port}`);
+  });
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    if ((err.code === "EADDRINUSE" || err.code === "EACCES") && attemptsLeft > 0) {
+      console.warn(`Port ${port} tidak tersedia (${err.code}), mencoba port ${port + 1}...`);
+      tryListen(port + 1, attemptsLeft - 1);
+    } else {
+      console.error("Gagal menjalankan server:", err.message);
+      process.exit(1);
+    }
+  });
+}
+
 async function setupViteAndStatic() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -437,32 +464,14 @@ async function setupViteAndStatic() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+    setupProductionStatic();
   }
 
-  const tryListen = (port: number, attemptsLeft = 5) => {
-    const server = app.listen(port, "0.0.0.0");
-    server.once("listening", () => {
-      // #region agent log
-      debugLog("server.ts:listen", "Server bound", { port, gasConfigured: !!process.env.GAS_ENDPOINT_URL }, "C");
-      // #endregion
-      console.log(`Server running on http://localhost:${port}`);
-    });
-    server.on("error", (err: NodeJS.ErrnoException) => {
-      if ((err.code === "EADDRINUSE" || err.code === "EACCES") && attemptsLeft > 0) {
-        console.warn(`Port ${port} tidak tersedia (${err.code}), mencoba port ${port + 1}...`);
-        tryListen(port + 1, attemptsLeft - 1);
-      } else {
-        console.error("Gagal menjalankan server:", err.message);
-        process.exit(1);
-      }
-    });
-  };
-  tryListen(PORT);
+  if (!process.env.VERCEL) {
+    tryListen(PORT);
+  }
 }
 
 setupViteAndStatic();
+
+export default app;
