@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Remix: Remix: Google Drive Explorer",
+  "description": "An AI-powered Google Drive explorer to search, browse, view, and summarize files using Gemini.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
