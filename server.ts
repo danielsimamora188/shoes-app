@@ -5,6 +5,7 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 
 dotenv.config();
+console.log("DEBUG: GAS_ENDPOINT_URL is:", process.env.GAS_ENDPOINT_URL);
 
 const app = express();
 const PORT = 3000;
