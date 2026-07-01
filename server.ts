@@ -430,8 +430,8 @@ app.patch("/api/admin/orders/:id/status", async (req, res) => {
 function setupProductionStatic() {
   const distPath = path.join(process.cwd(), "dist");
   app.use(express.static(distPath));
-  app.get("*", (req, res, next) => {
-    if (req.path.startsWith("/api/")) return next();
+  app.use((req, res, next) => {
+    if (req.path.startsWith("/api/") || req.method !== "GET") return next();
     res.sendFile(path.join(distPath, "index.html"));
   });
 }
