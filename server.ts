@@ -2,7 +2,6 @@ import express from "express";
 import path from "path";
 import dotenv from "dotenv";
 import fs from "fs";
-import { createServer as createViteServer } from "vite";
 
 dotenv.config();
 console.log("DEBUG: GAS_ENDPOINT_URL is:", process.env.GAS_ENDPOINT_URL);
@@ -458,6 +457,7 @@ function tryListen(port: number, attemptsLeft = 5) {
 
 async function setupViteAndStatic() {
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
